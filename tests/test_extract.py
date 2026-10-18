@@ -9,7 +9,7 @@ from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app import blizzard, config, db, extract, tsm
+from app import api_keys, blizzard, config, db, extract, tsm
 
 
 def item_payload(item_id, purchase_price=500, **extra):
@@ -715,6 +715,62 @@ class JoinWorkerTest(unittest.TestCase):
         finally:
             release.set()
             extract.join_worker(timeout=5)
+
+
+class StatusSetupBlockTest(unittest.TestCase):
+    """First-run wizard: status carries setup {credentials, extract_done}."""
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.db_path = os.path.join(self.dir, "flip.sqlite")
+        self.cfg = dict(config.defaults(), cache_dir=self.dir,
+                        db_path=self.db_path)
+
+    def tearDown(self):
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def status(self, cfg=None):
+        return extract.status(cfg if cfg is not None else self.cfg,
+                              db_path=self.db_path)
+
+    def test_setup_block_shape_when_fresh_clone(self):
+        st = self.status()
+        self.assertIn("setup", st)
+        self.assertFalse(st["setup"]["credentials"])
+        self.assertFalse(st["setup"]["extract_done"])
+
+    def test_credentials_true_from_config_file_creds(self):
+        cfg = dict(self.cfg, client_id="ID", client_secret="SEC")
+        self.assertTrue(self.status(cfg)["setup"]["credentials"])
+
+    def test_config_needs_both_id_and_secret(self):
+        cfg = dict(self.cfg, client_id="ID", client_secret="")
+        self.assertFalse(self.status(cfg)["setup"]["credentials"])
+
+    def test_credentials_true_from_stored_db_key(self):
+        conn = db.connect(self.db_path)
+        db.init_schema(conn)
+        api_keys.add(conn, "main", "ID", "SEC")
+        conn.commit()
+        conn.close()
+        self.assertTrue(self.status()["setup"]["credentials"])
+
+    def test_extract_done_true_when_phase_complete(self):
+        conn = db.connect(self.db_path)
+        db.init_schema(conn)
+        db.state_bulk(conn, {"phase": "complete",
+                             "updated_at": "2026-10-18T00:00:00"})
+        conn.commit()
+        conn.close()
+        st = self.status()
+        self.assertTrue(st["setup"]["extract_done"])
+        self.assertFalse(st["setup"]["credentials"])
+
+    def test_status_missing_db_file_never_raises(self):
+        missing = os.path.join(self.dir, "absent.sqlite")
+        st = extract.status(config.defaults(), db_path=missing)
+        self.assertFalse(st["setup"]["credentials"])
+        self.assertFalse(st["setup"]["extract_done"])
 
 
 if __name__ == "__main__":

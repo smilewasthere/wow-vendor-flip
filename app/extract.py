@@ -15,6 +15,7 @@ the OS releases it if the holder dies.
 
 import datetime
 import os
+import sqlite3
 import threading
 import time
 
@@ -214,10 +215,15 @@ def status(cfg=None, db_path=None):
            "universe_size": 0, "scanned": 0, "candidates": 0, "not_found": 0,
            "retries": 0, "tsm_skipped": 0, "last_error": "", "started_at": "",
            "updated_at": ""}
+    has_key = False
     if os.path.exists(db_path):
         conn = db.connect(db_path)
         try:
             state = db.state_dict(conn)
+            try:
+                has_key = api_keys.available(conn)
+            except sqlite3.OperationalError:
+                has_key = False  # schema not created yet
         finally:
             conn.close()
         out["phase"] = state.get("phase") or "idle"
@@ -245,6 +251,14 @@ def status(cfg=None, db_path=None):
         "newer_than_extract": (
             out["phase"] == "complete" and bool(snap["fetched_at"]) and
             (not out["updated_at"] or snap["fetched_at"] > out["updated_at"])),
+    }
+    # First-run wizard: "is setup done?" = credentials anywhere (stored
+    # key or config file) + a completed extraction. Read-only, no network.
+    eff = cfg or {}
+    out["setup"] = {
+        "credentials": bool(
+            eff.get("client_id") and eff.get("client_secret")) or has_key,
+        "extract_done": out["phase"] == "complete",
     }
     return out
 

@@ -41,6 +41,14 @@ REQUIRED_IDS = [
     "tsm-chip",
     "qty-pop", "qty-item", "qty-price", "qty-preset-mv", "qty-preset-low",
     "qty-myqty", "qty-result", "qty-stack", "qty-age", "qty-foot",
+    # First-run setup wizard (welcome popup + pending ribbon)
+    "setup-overlay", "fs-title", "fs-step-welcome", "fs-step-api",
+    "fs-step-extract", "fs-welcome-next", "fs-welcome-skip",
+    "fs-ak-id", "fs-ak-secret", "fs-ak-status", "fs-ak-test", "fs-ak-add",
+    "fs-api-next", "fs-api-skip", "fs-region", "fs-extract-start",
+    "fs-extract-progress", "fs-progress-text", "fs-bar-fill",
+    "fs-extract-close", "fs-finish",
+    "setup-ribbon", "ribbon-text", "ribbon-progress", "ribbon-open",
 ]
 
 

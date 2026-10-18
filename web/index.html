@@ -343,6 +343,86 @@
       the undercut race is not simulated. Same-price listings are not counted
       against you (LIFO).</p>
   </div>
+  <div id="setup-overlay" class="setup-overlay" hidden role="dialog"
+       aria-modal="true" aria-labelledby="fs-title">
+    <div class="setup-modal">
+      <div class="fs-step" id="fs-step-welcome">
+        <svg class="fs-hero" viewBox="0 0 48 48" width="46" height="46"
+             aria-hidden="true" fill="none" stroke="currentColor"
+             stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="24" cy="24" r="15"/>
+          <ellipse cx="24" cy="24" rx="6.4" ry="15"/>
+          <path d="M9 24h30M11.5 16h25M11.5 32h25"/>
+        </svg>
+        <h2 id="fs-title">Welcome to WoW Vendor-Flip Finder</h2>
+        <p class="fs-lead">It finds NPC-vendor items you can buy cheap and
+          flip on the Auction House for profit. Two quick things and you
+          are ready:</p>
+        <ol class="fs-list">
+          <li>Add your free Blizzard API key</li>
+          <li>Extract vendor data (about 1 hour, runs once)</li>
+        </ol>
+        <p class="fs-note">Get a free key at <strong>develop.battle.net</strong>
+          &rarr; Create New Client &rarr; any name &rarr; Confidential &rarr;
+          copy the <strong>Client ID</strong> and <strong>Client Secret</strong>.
+          No payment needed.</p>
+        <div class="fs-actions">
+          <button type="button" id="fs-welcome-next"
+                  class="btn btn-gold">Set up now</button>
+          <button type="button" id="fs-welcome-skip"
+                  class="btn btn-quiet">Skip for now</button>
+        </div>
+      </div>
+      <div class="fs-step" id="fs-step-api" hidden>
+        <h3>Step 1 &middot; Add your API key</h3>
+        <div class="fs-fields">
+          <input type="text" id="fs-ak-id" placeholder="Client ID"
+                 maxlength="128" autocomplete="off">
+          <input type="password" id="fs-ak-secret" placeholder="Client Secret"
+                 maxlength="256" autocomplete="off">
+        </div>
+        <p class="ak-status" id="fs-ak-status" hidden></p>
+        <p class="fs-note">Your key stays on this machine &mdash; stored only
+          in the local database, never uploaded anywhere.</p>
+        <div class="fs-actions">
+          <button type="button" id="fs-ak-test" class="btn btn-blue">Test</button>
+          <button type="button" id="fs-ak-add" class="btn btn-gold">Add key</button>
+          <button type="button" id="fs-api-next" class="btn"
+                  disabled>Continue</button>
+          <button type="button" id="fs-api-skip" class="btn btn-quiet">Skip</button>
+        </div>
+      </div>
+      <div class="fs-step" id="fs-step-extract" hidden>
+        <h3>Step 2 &middot; Extract vendor data</h3>
+        <label class="fs-region-label">Region
+          <select id="fs-region">
+            <option value="eu">eu</option>
+            <option value="us">us</option>
+          </select>
+        </label>
+        <p class="fs-note">Asks Blizzard about every item (~31k calls,
+          about 1 hour). It is resumable &mdash; close the wizard and the
+          progress keeps running.</p>
+        <button type="button" id="fs-extract-start"
+                class="btn btn-gold">Start extraction</button>
+        <div class="fs-progress" id="fs-extract-progress" hidden>
+          <p id="fs-progress-text" class="muted"></p>
+          <div class="fs-bar"><span class="fs-bar-fill" id="fs-bar-fill"></span></div>
+        </div>
+        <div class="fs-actions">
+          <button type="button" id="fs-extract-close"
+                  class="btn btn-quiet">Close (keep running)</button>
+          <button type="button" id="fs-finish" class="btn btn-gold"
+                  hidden>All done!</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="setup-ribbon" class="setup-ribbon" hidden>
+    <span id="ribbon-text">Setup pending</span>
+    <span id="ribbon-progress" class="muted"></span>
+    <button type="button" id="ribbon-open" class="btn btn-quiet">Open setup</button>
+  </div>
   <div id="verdict-tip" role="tooltip"></div>
   <div id="roi-tip" role="tooltip"></div>
   <div id="toast" role="status" aria-live="polite" hidden></div>

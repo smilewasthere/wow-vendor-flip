@@ -948,6 +948,7 @@
         (payload.tsm_skipped ? " · tsm skipped " + payload.tsm_skipped : "") +
         (payload.running ? " · running" : "") +
         (payload.last_error ? " · error: " + payload.last_error : "");
+      fsOnStatus(payload);
     }).catch(function () {
       $("data-chip").textContent = "data: offline";
       renderTsmChip(null);
@@ -1101,6 +1102,189 @@
         akStatus((body.ok ? "OK — " : "Failed — ") + (body.message || ""),
                  !body.ok);
       }).catch(function (err) { akStatus(err.message, true); });
+  }
+
+  /* ---------- first-run setup wizard (welcome popup) ---------- */
+
+  var FS_STEPS = ["fs-step-welcome", "fs-step-api", "fs-step-extract"];
+  var fs = { opened: false, skipped: false, setup: null };
+
+  function fsSkipRemembered() {
+    try {
+      return sessionStorage.getItem("vf-setup-skip") === "1";
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function fsStatus(message, isError) {
+    var node = $("fs-ak-status");
+    node.textContent = message;
+    node.className = "ak-status" + (isError ? " error" : "");
+    node.hidden = false;
+  }
+
+  function fsShow(stepId) {
+    FS_STEPS.forEach(function (id) { $(id).hidden = (id !== stepId); });
+    if (stepId === "fs-step-extract") {
+      $("fs-region").value = state.settings.region || "eu";
+    }
+    $("setup-overlay").hidden = false;
+    fs.opened = true;
+    var focusMap = {
+      "fs-step-welcome": "fs-welcome-next",
+      "fs-step-api": "fs-ak-id",
+      "fs-step-extract": "fs-extract-start"
+    };
+    var target = $(focusMap[stepId]);
+    if (target && !target.disabled && !target.hidden) { target.focus(); }
+  }
+
+  function fsClose(withSkip) {
+    $("setup-overlay").hidden = true;
+    if (withSkip) {
+      fs.skipped = true;
+      try { sessionStorage.setItem("vf-setup-skip", "1"); } catch (e) { }
+    }
+    fsRenderRibbon();
+  }
+
+  function fsSetupDone(setup) {
+    return !!setup && !!setup.credentials && !!setup.extract_done;
+  }
+
+  function fsRenderRibbon() {
+    var setup = fs.setup;
+    if (!setup || fsSetupDone(setup) || !$("setup-overlay").hidden) {
+      $("setup-ribbon").hidden = true;
+      return;
+    }
+    $("setup-ribbon").hidden = false;
+    $("ribbon-text").textContent = setup.credentials
+      ? "Setup: extract vendor data"
+      : "Setup: add your API key";
+  }
+
+  function fsUpdateProgress(payload) {
+    var pct = 0;
+    if (payload.universe_size > 0) {
+      pct = Math.min(100, Math.round(
+        (payload.scanned || 0) / payload.universe_size * 100));
+    }
+    var text = "phase " + (payload.phase || "?") +
+      " · scanned " + (payload.scanned || 0) +
+      " / " + (payload.universe_size || 0) +
+      " · candidates " + (payload.candidates || 0);
+    if (payload.last_error) { text += " · error: " + payload.last_error; }
+    $("fs-progress-text").textContent = text;
+    $("fs-bar-fill").style.width = pct + "%";
+    $("ribbon-progress").textContent = payload.running ? pct + "%" : "";
+  }
+
+  function fsOnStatus(payload) {
+    var setup = payload.setup;
+    if (!setup) { return; }
+    fs.setup = setup;
+    var started = payload.running || !!payload.started_at ||
+      (payload.phase && payload.phase !== "idle");
+    if (fsSetupDone(setup)) {
+      $("setup-ribbon").hidden = true;
+      if (!$("setup-overlay").hidden) {
+        // celebration: flip the extract step into its finished state
+        $("fs-extract-start").hidden = true;
+        $("fs-extract-close").hidden = true;
+        $("fs-finish").hidden = false;
+        $("fs-extract-progress").hidden = false;
+        fsUpdateProgress(payload);
+        fsShow("fs-step-extract");
+      } else {
+        $("setup-overlay").hidden = true;
+      }
+      return;
+    }
+    if (setup.credentials && started) {
+      // Extraction already began in an earlier visit - show live progress
+      // instead of asking to start again.
+      $("fs-extract-progress").hidden = false;
+      $("fs-extract-start").hidden = true;
+      fsUpdateProgress(payload);
+    }
+    if (setup.credentials && !$("fs-step-api").hidden) {
+      $("fs-api-next").disabled = false;  // key exists now (added anywhere)
+    }
+    // First-time auto-open: never after Skip, never once extraction started.
+    if (!fs.opened && !fs.skipped && !fsSkipRemembered()) {
+      if (!setup.credentials) {
+        fsShow("fs-step-welcome");
+      } else if (!started) {
+        fsShow("fs-step-extract");
+      }
+    }
+    fsRenderRibbon();
+  }
+
+  function fsWizardTest() {
+    var id = $("fs-ak-id").value.trim();
+    var secret = $("fs-ak-secret").value;
+    if (!id || !secret) {
+      fsStatus("Client ID and Secret are required", true);
+      return;
+    }
+    fsStatus("Testing credentials…", false);
+    postJSON("/api/api-keys", {
+      action: "test", client_id: id, client_secret: secret
+    }).then(function (body) {
+      fsStatus((body.ok ? "OK — " : "Failed — ") + (body.message || ""),
+               !body.ok);
+    }).catch(function (err) { fsStatus(err.message, true); });
+  }
+
+  function fsWizardAdd() {
+    var id = $("fs-ak-id").value.trim();
+    var secret = $("fs-ak-secret").value;
+    if (!id || !secret) {
+      fsStatus("Client ID and Secret are required", true);
+      return;
+    }
+    fsStatus("Adding key…", false);
+    postJSON("/api/api-keys", {
+      action: "add", label: "main", client_id: id, client_secret: secret
+    }).then(function () {
+      $("fs-ak-id").value = "";
+      $("fs-ak-secret").value = "";
+      fsStatus("Key added ✓", false);
+      $("fs-api-next").disabled = false;
+      if (fs.setup) { fs.setup.credentials = true; }
+      return loadApiKeys();
+    }).catch(function (err) { fsStatus(err.message, true); });
+  }
+
+  function fsWizardStart() {
+    var region = $("fs-region").value;
+    postJSON("/api/settings", { settings: { region: region } })
+      .then(function () {
+        state.settings.region = region;
+        $("region-chip").textContent = region;
+        return postJSON("/api/extract/start", { restart: false });
+      })
+      .then(function () {
+        $("fs-extract-start").hidden = true;
+        $("fs-extract-progress").hidden = false;
+        toast("Extraction started");
+        pollStatus();
+      }).catch(function (err) {
+        toast("Start failed: " + err.message, true);
+      });
+  }
+
+  function fsRibbonOpen() {
+    var setup = fs.setup;
+    if (!setup) { return; }
+    if (!setup.credentials) {
+      fsShow(fs.opened ? "fs-step-api" : "fs-step-welcome");
+    } else {
+      fsShow("fs-step-extract");
+    }
   }
 
   // Only keys the user actually changed are sent: empty fields stop wiping
@@ -1574,6 +1758,34 @@
     $("btn-reextract").addEventListener("click", reextract);
     $("btn-ak-add").addEventListener("click", addApiKey);
     $("btn-ak-test").addEventListener("click", testFormCredentials);
+    // first-run setup wizard
+    $("fs-welcome-next").addEventListener("click", function () {
+      fsShow("fs-step-api");
+    });
+    $("fs-welcome-skip").addEventListener("click", function () {
+      fsClose(true);
+    });
+    $("fs-api-skip").addEventListener("click", function () {
+      fsClose(true);
+    });
+    $("fs-ak-test").addEventListener("click", fsWizardTest);
+    $("fs-ak-add").addEventListener("click", fsWizardAdd);
+    $("fs-api-next").addEventListener("click", function () {
+      fsShow("fs-step-extract");
+    });
+    $("fs-extract-start").addEventListener("click", fsWizardStart);
+    $("fs-extract-close").addEventListener("click", function () {
+      fsClose(false);
+    });
+    $("fs-finish").addEventListener("click", function () {
+      fsClose(false);
+    });
+    $("ribbon-open").addEventListener("click", fsRibbonOpen);
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && !$("setup-overlay").hidden) {
+        fsClose(false);
+      }
+    });
   }
 
   // M11: click feedback - press-in gleam + a ripple at the exact click point
