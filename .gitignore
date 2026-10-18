@@ -1,0 +1,22 @@
+# Never commit credentials
+config.local.json
+
+# Local-only working files (never public)
+AGENT-NOTES.md
+PLAN.md
+docs/
+.superpowers/
+
+# Runtime data — regenerated on any machine
+data/
+*.lock
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Editor / OS noise
+.vscode/
+Thumbs.db
+.DS_Store
+*.tmp

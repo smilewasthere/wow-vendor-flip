@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WoW Vendor-Flip Finder</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="spacer"></div>
+    <div class="brand">
+      <svg class="brand-wing" viewBox="0 0 34 14" width="34" height="14"
+           aria-hidden="true" fill="none" stroke="currentColor"
+           stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M33 7H15"/>
+        <path d="M11 7l4-4M11 7l4 4"/>
+        <path d="M11 7 7 3l-4 4 4 4z"/>
+      </svg>
+      <svg class="brand-mark" viewBox="0 0 24 24" width="25" height="25"
+           aria-hidden="true" fill="none" stroke="currentColor"
+           stroke-width="1.6" stroke-linejoin="round">
+        <circle cx="10.3" cy="12" r="6.8"/>
+        <ellipse cx="17.1" cy="12" rx="3.4" ry="6.8"/>
+      </svg>
+      <h1>WoW Vendor-Flip Finder</h1>
+      <svg class="brand-wing" viewBox="0 0 34 14" width="34" height="14"
+           aria-hidden="true" fill="none" stroke="currentColor"
+           stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M33 7H15"/>
+        <path d="M11 7l4-4M11 7l4 4"/>
+        <path d="M11 7 7 3l-4 4 4 4z"/>
+      </svg>
+    </div>
+    <div class="topbar-actions">
+      <button type="button" id="btn-refresh" class="btn btn-icon"
+              aria-label="Refresh" title="Refresh">
+        <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"
+             fill="none" stroke="currentColor" stroke-width="1.6"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1"/>
+          <path d="M20.5 3.5v5h-5"/>
+        </svg>
+      </button>
+      <button type="button" id="btn-filters" class="btn btn-icon"
+              aria-expanded="false" aria-controls="filter-pop"
+              aria-label="Filters" title="Filters">
+        <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"
+             fill="none" stroke="currentColor" stroke-width="1.6"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>
+        </svg>
+      </button>
+      <button type="button" id="btn-settings" class="btn btn-icon"
+              aria-expanded="false" aria-controls="settings-panel"
+              aria-label="Settings" title="Settings">
+        <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"
+             fill="none" stroke="currentColor" stroke-width="1.6"
+             stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3.2"/>
+          <path d="M12 1.8l1.3 2.7 3-.7 1 2.9 2.9 1-.7 3L22.2 12l-2.7 1.3.7 3-2.9 1-1 2.9-3-.7L12 22.2l-1.3-2.7-3 .7-1-2.9-2.9-1 .7-3L1.8 12l2.7-1.3-.7-3 2.9-1 1-2.9 3 .7z"/>
+        </svg>
+      </button>
+    </div>
+    <div id="filter-pop" class="popover" hidden role="group"
+         aria-label="View filters">
+      <label class="slider-label">min sold/day
+        <input type="range" id="f-min-sold" min="0" max="100" step="0.5"
+               value="0">
+        <output for="f-min-sold" id="out-min-sold">0</output>
+      </label>
+      <label class="slider-label">min profit (g)
+        <input type="range" id="f-min-profit" min="0" max="1000" step="5"
+               value="0">
+        <output for="f-min-profit" id="out-min-profit">0</output>
+      </label>
+      <label class="slider-label">min sale rate (%)
+        <input type="range" id="f-min-sale-rate" min="0" max="100" step="1"
+               value="0">
+        <output for="f-min-sale-rate" id="out-min-sale-rate">0</output>
+      </label>
+      <label class="slider-label">min ROI (%)
+        <input type="range" id="f-min-roi" min="0" max="100" step="1"
+               value="0">
+        <output for="f-min-roi" id="out-min-roi">0</output>
+      </label>
+      <label class="check-label">
+        <input type="checkbox" id="f-only-flagged"> only flagged</label>
+      <label class="check-label">
+        <input type="checkbox" id="f-hide-excluded" checked> hide excluded</label>
+      <button type="button" id="f-reset" class="btn btn-quiet">Reset view
+        filters</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="top-picks-wrap" aria-label="Top picks">
+      <h2>Top picks</h2>
+      <p id="top-picks-note" class="muted"></p>
+      <div id="top-picks" class="cards"></div>
+    </section>
+
+    <section id="filters" class="filters" aria-label="View filters">
+      <div class="search-wrap">
+        <input type="search" id="f-search" placeholder="Search name or id"
+               aria-label="Search items by name or id">
+        <div id="search-suggest" class="suggest" role="listbox" aria-label="Search suggestions" hidden></div>
+      </div>
+      <select id="f-verdict" aria-label="Verdict filter">
+        <option value="">All verdicts</option>
+        <option value="GOOD">GOOD</option>
+        <option value="CHECK VENDOR">CHECK VENDOR</option>
+        <option value="RISKY">RISKY</option>
+        <option value="NOT WORTH IT">NOT WORTH IT</option>
+        <option value="CHECK IN GAME">CHECK IN GAME</option>
+        <option value="NOT VENDOR-SOLD">NOT VENDOR-SOLD</option>
+      </select>
+      <select id="f-sort" aria-label="Sort by">
+        <option value="" disabled>Custom sort…</option>
+        <option value="score">Sort: score</option>
+        <option value="profit">Sort: profit</option>
+        <option value="roi">Sort: ROI</option>
+        <option value="sold">Sort: sold/day</option>
+      </select>
+      <div id="summary" class="summary" aria-label="Verdict summary">
+        <button type="button" class="count v-good" data-verdict="GOOD"
+                aria-label="Show only GOOD items">
+          <span id="count-good">0</span></button>
+        <button type="button" class="count v-check" data-verdict="CHECK VENDOR"
+                aria-label="Show only CHECK VENDOR items">
+          <span id="count-check-vendor">0</span></button>
+        <button type="button" class="count v-risky" data-verdict="RISKY"
+                aria-label="Show only RISKY items">
+          <span id="count-risky">0</span></button>
+        <button type="button" class="count v-no" data-verdict="NOT WORTH IT"
+                aria-label="Show only NOT WORTH IT items">
+          <span id="count-not-worth-it">0</span></button>
+        <button type="button" class="count v-game" data-verdict="CHECK IN GAME"
+                aria-label="Show only CHECK IN GAME items">
+          <span id="count-check-in-game">0</span></button>
+        <button type="button" class="count v-nosale"
+                data-verdict="NOT VENDOR-SOLD"
+                aria-label="Show only NOT VENDOR-SOLD items">
+          <span id="count-not-vendor-sold">0</span></button>
+      </div>
+    </section>
+
+    <section id="table-wrap" aria-label="Candidate items">
+      <p id="items-count" class="muted"></p>
+      <button type="button" id="btn-top" class="scroll-top" hidden
+              aria-label="Back to list top" title="Up">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"
+             fill="none" stroke="currentColor" stroke-width="1.6"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 19V5"/>
+          <path d="M5 12l7-7 7 7"/>
+        </svg>
+        <span>Up</span>
+      </button>
+      <div class="table-scroll">
+        <table class="items">
+          <thead>
+            <tr>
+              <th scope="col">Icon</th>
+              <th scope="col" data-sort-col="name"><button type="button"
+                class="th-sort" data-sort="name">Item<span class="sort-arrow"
+                aria-hidden="true"></span></button></th>
+              <th scope="col">Verdict</th>
+              <th scope="col" class="num" data-sort-col="purchase_price"><button
+                type="button" class="th-sort" data-sort="purchase_price">Vendor
+                price<span class="sort-arrow" aria-hidden="true"></span></button></th>
+              <th scope="col" class="num" data-sort-col="purchase_quantity"><button
+                type="button" class="th-sort" data-sort="purchase_quantity">Qty<span
+                class="sort-arrow" aria-hidden="true"></span></button></th>
+              <th scope="col" class="num" data-sort-col="vendor_cost_unit"><button
+                type="button" class="th-sort" data-sort="vendor_cost_unit">Cost/unit<span
+                class="sort-arrow" aria-hidden="true"></span></button></th>
+              <th scope="col" class="num" data-sort-col="sell_price"><button
+                type="button" class="th-sort" data-sort="sell_price">AH price<span
+                class="sort-arrow" aria-hidden="true"></span></button></th>
+              <th scope="col" class="num" data-sort-col="sold_per_day"><button
+                type="button" class="th-sort" data-sort="sold_per_day">Sold/day<span
+                class="sort-arrow" aria-hidden="true"></span></button></th>
+              <th scope="col" class="num" data-sort-col="sale_rate"><button
+                type="button" class="th-sort" data-sort="sale_rate">Sale rate<span
+                class="sort-arrow" aria-hidden="true"></span></button></th>
+              <th scope="col" class="num" data-sort-col="net_profit_unit"><button
+                type="button" class="th-sort" data-sort="net_profit_unit">Net/unit<span
+                class="sort-arrow" aria-hidden="true"></span></button></th>
+              <th scope="col" class="num" data-sort-col="roi"><button type="button"
+                class="th-sort" data-sort="roi">ROI<span class="sort-arrow"
+                aria-hidden="true"></span></button></th>
+              <th scope="col">Seen</th>
+              <th scope="col">Notes</th>
+              <th scope="col">Advisor</th>
+            </tr>
+          </thead>
+          <tbody id="items-body"></tbody>
+        </table>
+      </div>
+      <p id="empty-state" class="muted" hidden>No items match the current
+        filters.</p>
+    </section>
+
+    <div class="drawer-backdrop" id="settings-backdrop"></div>
+    <section id="settings-panel" class="drawer" hidden role="dialog"
+             aria-modal="true" aria-label="Settings">
+      <div class="drawer-head">
+        <svg class="drawer-gear" viewBox="0 0 24 24" width="18" height="18"
+             aria-hidden="true" fill="none" stroke="currentColor"
+             stroke-width="1.6" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3.2"/>
+          <path d="M12 1.8l1.3 2.7 3-.7 1 2.9 2.9 1-.7 3L22.2 12l-2.7 1.3.7 3-2.9 1-1 2.9-3-.7L12 22.2l-1.3-2.7-3 .7-1-2.9-2.9-1 .7-3L1.8 12l2.7-1.3-.7-3 2.9-1 1-2.9 3 .7z"/>
+        </svg>
+        <h2>Settings</h2>
+        <span class="spacer"></span>
+        <button type="button" id="btn-settings-close" class="btn btn-icon"
+                aria-label="Close settings" title="Close">
+          <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"
+               fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round">
+            <path d="M5 5l14 14M19 5L5 19"/>
+          </svg>
+        </button>
+      </div>
+      <div class="settings-section vault">
+        <h3><svg class="vault-key" viewBox="0 0 16 16" width="13" height="13"
+             aria-hidden="true" fill="none" stroke="currentColor"
+             stroke-width="1.5" stroke-linecap="round">
+          <circle cx="5.5" cy="5.5" r="3"/>
+          <path d="M7.8 7.8 14 14M11 11l-1.6 1.6M13 13l-1.2 1.2"/>
+        </svg>API Keys</h3>
+        <ul id="api-keys-list" class="ak-list"></ul>
+        <div class="ak-add">
+          <input type="text" id="ak-label" placeholder="Label"
+                 maxlength="40" autocomplete="off">
+          <input type="text" id="ak-id" placeholder="Client ID"
+                 maxlength="128" autocomplete="off">
+          <input type="password" id="ak-secret" placeholder="Client Secret"
+                 maxlength="256" autocomplete="off">
+          <button type="button" id="btn-ak-test" class="btn btn-blue">Test</button>
+          <button type="button" id="btn-ak-add" class="btn btn-gold">Add key</button>
+        </div>
+        <p class="ak-status" id="ak-status" hidden></p>
+      </div>
+
+      <div class="settings-section">
+        <h3>Region &amp; data</h3>
+        <div class="settings-grid">
+          <label>Region
+            <select id="s-region">
+              <option value="eu">eu</option>
+              <option value="us">us</option>
+            </select>
+          </label>
+          <label>Icon host
+            <select id="s-icon-host">
+              <option value="blizzard">blizzard</option>
+              <option value="wowhead">wowhead</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Data</h3>
+        <div class="settings-actions">
+          <button type="button" id="btn-settings-save" class="btn">Save
+            settings</button>
+          <button type="button" id="btn-settings-reset"
+                  class="btn btn-quiet">Reset overrides</button>
+          <button type="button" id="btn-reextract"
+                  class="btn btn-warn">Re-extract vendor data</button>
+        </div>
+        <p id="extract-status" class="muted"></p>
+      </div>
+
+      <div class="vc-card" id="vendor-check-card"
+           aria-label="Wowhead vendor check">
+        <div class="vc-row vc-head">
+          <span class="vc-icon" aria-hidden="true">
+            <svg viewBox="0 0 20 20" width="15" height="15" fill="none"
+                 stroke="currentColor" stroke-width="1.5"
+                 stroke-linecap="round">
+              <circle cx="10" cy="10" r="7.2"/>
+              <path d="M10 2.8v3M10 14.2v3M2.8 10h3M14.2 10h3"/>
+              <circle cx="10" cy="10" r="2.2"/>
+            </svg>
+          </span>
+          <strong>Wowhead vendor check</strong>
+          <span class="vc-pill"><span class="vc-tally" id="vc-tally">idle</span></span>
+          <span class="spacer"></span>
+          <button type="button" id="btn-vc-start" class="btn btn-green">Start</button>
+          <button type="button" id="btn-vc-restart"
+                  class="btn btn-orange">Re-check all</button>
+          <button type="button" id="btn-vc-cancel"
+                  class="btn btn-red" hidden>Cancel</button>
+        </div>
+        <div class="vc-progress" aria-hidden="true"><span id="vc-bar"></span>
+        </div>
+        <p class="vc-attention" id="vc-attention" hidden>
+          <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"
+               fill="none" stroke="currentColor" stroke-width="1.5"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 1.8 15 14H1z"/><path d="M8 6.4v3.4"/>
+            <path d="M8 11.8h.01"/>
+          </svg>
+          <span>Cloudflare challenge — finish it in the Edge window, then
+          press Start to resume.</span>
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="statusbar">
+    <span class="chip" id="region-chip">eu</span>
+    <span class="chip" id="data-chip">data …</span>
+    <span class="chip" id="tsm-chip">TSM …</span>
+  </footer>
+
+  <div id="qty-pop" class="popover qty-pop" hidden role="dialog" aria-label="Posting advisor">
+    <div class="qty-head">
+      <strong>Posting advisor</strong>
+      <span class="qty-sub" id="qty-item"></span>
+    </div>
+    <label class="qty-price-label">Post price (gold)
+      <input id="qty-price" type="number" min="1" step="0.01" inputmode="decimal">
+    </label>
+    <div class="qty-presets">
+      <button type="button" id="qty-preset-mv" class="btn btn-quiet">Market
+        value</button>
+      <button type="button" id="qty-preset-low" class="btn btn-quiet">Lowest
+        listed</button>
+    </div>
+    <label class="qty-myqty-label">How many you have
+      <input id="qty-myqty" type="number" min="1" step="1" inputmode="numeric"
+             placeholder="optional">
+    </label>
+    <div id="qty-result" class="qty-result" aria-live="polite">—</div>
+    <div id="qty-stack" class="qty-stack" hidden></div>
+    <p id="qty-age" class="qty-age muted"></p>
+    <p id="qty-foot" class="qty-foot">Model estimate from TSM sales data —
+      the undercut race is not simulated. Same-price listings are not counted
+      against you (LIFO).</p>
+  </div>
+  <div id="verdict-tip" role="tooltip"></div>
+  <div id="roi-tip" role="tooltip"></div>
+  <div id="toast" role="status" aria-live="polite" hidden></div>
+  <script src="/app.js"></script>
+</body>
+</html>
